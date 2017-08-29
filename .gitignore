@@ -1,0 +1,17 @@
+
+# Created by https://www.gitignore.io/api/erlang
+
+### Erlang ###
+.eunit
+deps
+*.o
+*.beam
+*.plt
+erl_crash.dump
+ebin/*.beam
+rel/example_project
+.concrete/DEV_MODE
+.rebar
+.gitignore.swp
+
+# End of https://www.gitig
