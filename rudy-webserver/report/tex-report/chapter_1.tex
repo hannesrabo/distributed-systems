@@ -1,0 +1,11 @@
+\chapter{Introduction} 
+\pagenumbering{arabic}
+\label{chap_Intro}
+
+This report presents the result after coding a simple webserver "Rudy" that can serve pages including text document and simple images. The server tries to follow specifications for the HTTP protocol according to the standard \cite{http-rfc}, but many features has been left out to simplify the process. The server can easily be extended to include  more of these features in case they are needed. In the current state it can serve most relevant static content that modern websites utilize. This includes basic images (PNG, JPEG), PDF and static textfiles containing CSS, JS and HTML. To serve other types of content (except plaintext), the content was written into the response body and MIME-type added the header. The type was exclusively inferred from file extensions as other methods seemed unnecessary for this simple purpose
+
+The server comes in two versions with different approaches to the concurrency problem. Version one \textit{"rudy"} spawns a new Erlang processes for each incoming request and consequently processes everything concurrently. The second approach that was implemented instead used a consumer/producer model where incoming requests were put into the processing queue and served by a fixed number of consumer processes (this server is defined in packages \textit{"rudy\_cons"}).
+
+For the server implemented using the consumer model all incoming requests were uniformly distributed among the workers. This means that if any requests took longer than others to fulfil, it would not redistribute the work. This should be a minor problem in this case as we are only serving static content and we can expect the heavy tasks to be uniformly distributed by chance.  
+
+
