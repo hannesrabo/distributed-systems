@@ -1,15 +1,9 @@
 -module(rudy_cons).
--export([init/2, start/1, start_multi/2, stop/0]).
+-export([init/2, start/1, stop/0]).
 
 start(Nr) ->
     P = spawn_link(rudy_cons, init, [8080, Nr]),
     register(rudy, P).
-
-start_multi(0, _) ->
-    ok;
-start_multi(Nr, SubThreads) ->
-    spawn_link(rudy_cons, init, [8080, SubThreads]),
-    start_multi(Nr - 1, SubThreads).
 
 stop() ->
     exit(whereis(rudy), "Server killed brutally").
@@ -18,13 +12,14 @@ init(Port, NrOfWorkers) ->
     Opt = [list, {active, false}, {reuseaddr, true}],
     case gen_tcp:listen(Port, Opt) of
         {ok, Listen} ->
-            % The producer and consumer handler runs is
-            % the background.
+            % Consumer handler runs is the background.
             CH = consumers:start_handler(),
             spawn_workers(CH, NrOfWorkers),
 
             % Listen for incoming requests
             incoming_request_handler(Listen, CH, 0),
+
+		    % This means the server died!
             gen_tcp:close(Listen),
             ok;
         {error, Error} ->
@@ -32,6 +27,7 @@ init(Port, NrOfWorkers) ->
             error
     end.
 
+% Spawns workers in separate threads.
 spawn_workers(_, 0) ->
     ok;
 spawn_workers(CH, I) ->
@@ -40,9 +36,9 @@ spawn_workers(CH, I) ->
             Recv = gen_tcp:recv(Client, 0),
             case Recv of
                 {ok, Str} ->
+				    % Create the response and send to client.
                     Request = http:parse_request(Str),
                     Response = reply(Request),
-                    % io:format(Response),
                     gen_tcp:send(Client, Response);
                 {error, Error} ->
                     io:format("rudy [RequestHandler]: error: ~w in id: ~w~n", [Error, I])
@@ -52,13 +48,13 @@ spawn_workers(CH, I) ->
     ),
     spawn_workers(CH, I - 1).
 
-% A client tries to connect
+% This function will continiously listen for new tcp connections 
 incoming_request_handler(Listen, CH, I) ->
     case gen_tcp:accept(Listen) of
         {ok, Client} ->
             % Make sure this client sends messages to us.
             % io:format("Received request~w~n", [Client]),
-            consumers:add_data(CH, {Client, I}),
+            consumers:add_data(CH, {Client, I}), % This adds the data to process queue
             incoming_request_handler(Listen, CH, I+1);
         {error, Error} ->
             io:format("rudy [Server]: error: ~w~n", [Error]),
@@ -66,23 +62,21 @@ incoming_request_handler(Listen, CH, I) ->
     end.
 
 reply(Request) ->
-	% We should load a page from memory here...
 	% Reading the requested file.
-    %timer:sleeps(40),
 	{{get, FileName, _HTTPVersion}, _Args, _Message} = Request,
-	if
-        FileName == [$/, $t] ->
-            http:ok("Response");
-		FileName == [$/]->
-			binay_file_request("index.html");
-		true ->
-			binay_file_request([$. | FileName])
+	if 
+	FileName == [$/, $t] -> % This is a test block with extra "load"
+    	http:ok("Response"),
+		timer:sleeps(40);
+	FileName == [$/]->
+	    binay_file_request("index.html");
+	true ->
+	    binay_file_request([$. | FileName])
 	end.
 
 % This can read practically any file and just converts it to an
 % array before sending it.
 binay_file_request(FileName) ->
-	%io:format("GET ~p~n", [FileName]),
 	case file:read_file("static/" ++ FileName) of
 		{ok, Binary} ->
 			%Providing the page
@@ -98,12 +92,11 @@ binay_file_request(FileName) ->
 		{error, _Reason} ->
 
 		    % Trying to provide 404 page
-			case file:read_file("404.html") of
+			case file:read_file("static/404.html") of
 				{ok, Binary} ->
-					%io:format("404 Page not available~n"),
 					http:fnf(binary_to_list(Binary));
-				{error, _Reason} ->
-					%io:format("404 Page not available (no page)~n"),
-					http:fnf()
+				{error, Reason} ->
+					io:format("~w~n", [Reason]),
+					http:fnf() % Even the 404 page is missing!!
 			end
 	end.
