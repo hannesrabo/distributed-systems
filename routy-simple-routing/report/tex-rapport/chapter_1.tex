@@ -1,0 +1,16 @@
+\chapter{Introduction} 
+\pagenumbering{arabic}
+\label{chap_Intro}
+
+In this lab a simple message routing system is to be constructed. The said system should be implemented in erlang using the built in message system. As this is not a production system and does not have strict performance requirements we are not trying to save data in our messages. The protocol has been specified in instructions for the assignment to ensure that clients are compatible with each other.
+
+The nodes in the network should use a link state routing algorithm where each node is broadcasting the directly connected nodes to the rest of the network which passes on this information. After all nodes have information of the connections in the network, Dijkstra's algorithm can be used to calculate the shortest paths through the network and create a routing table later used for incoming messages.
+
+This assignments builds upon code provided for the course and extends some parts to complete the functionality.	
+
+
+
+
+
+
+

@@ -1,0 +1,38 @@
+\include{init}
+
+%------ the real document begins here ------
+\begin{document}
+
+% Remove the behaviour to start sections on odd pages.
+\let\cleardoublepage\clearpage
+
+\pagenumbering{roman}
+
+
+%% Document layout
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+\include{titlePage}
+
+\clearpage
+
+%\include{abstract}
+
+%\tableofcontents
+
+%\listoffigures
+
+%\listoftables
+
+% first chapter must contain \pagenumbering{arabic} after header
+\include{chapter_1}
+\include{chapter_2}
+
+\bibliographystyle{ieeetr}
+%\bibliography{ref}
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+
+%------ end of document ------
+\end{document}
+
