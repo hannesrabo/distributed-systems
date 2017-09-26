@@ -24,8 +24,10 @@ loop(Clock, Queue) ->
 	receive
 		{log, From, Time, _Msg} = LogMessage ->
 			NewClock = time:update(From, Time, Clock),
+			%io:format("~n", []),
+			%io:format("~w : ~w~n", [LogMessage, Queue]),
 			NewQueue = print_safe(NewClock, insert_in_queue(LogMessage, Queue)),
-			%io:format("~w~n~w~n", [NewClock, NewQueue]),
+
 			loop(NewClock, NewQueue);
 		stop ->
 			ok
@@ -34,6 +36,7 @@ loop(Clock, Queue) ->
 print_safe(_Clock, []) ->
 	[];
 print_safe(Clock, [{log, From, Time, Msg} = LogMessage | Rest]) ->
+	% io:format("~w ~w~n", [Time, time:safe(Time, Clock)]),
 	case time:safe(Time, Clock) of
 		true ->
 			log(From, Time, Msg),
@@ -44,5 +47,5 @@ print_safe(Clock, [{log, From, Time, Msg} = LogMessage | Rest]) ->
 	end.
 
 
-log(From, {_Name, Time}, Msg) ->
-	io:format("[~w] (~w): ~p~n", [Time, From, Msg]).
+log(From, Time, Msg) ->
+	io:format("[~s]	(~w): ~p~n", [time:toString(Time), From, Msg]).
