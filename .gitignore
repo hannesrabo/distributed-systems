@@ -29,8 +29,8 @@ Session.vim
 # auto-generated tag files
 tags
 
-.pdf
-.zip
+*.pdf
+*.zip
 
 ### LaTeX ###
 ## Core latex/pdflatex auxiliary files:
@@ -255,4 +255,3 @@ TSWLatexianTemp*
 
 # expex forward references with \gathertags
 *-tags.tex
-

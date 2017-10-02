@@ -24,10 +24,12 @@ loop(Clock, Queue) ->
 	receive
 		{log, From, Time, _Msg} = LogMessage ->
 			NewClock = time:update(From, Time, Clock),
+			io:format("~w~n", [length(Queue)]),
 			NewQueue = print_safe(NewClock, insert_in_queue(LogMessage, Queue)),
 			%io:format("~w~n~w~n", [NewClock, NewQueue]),
 			loop(NewClock, NewQueue);
 		stop ->
+			io:format("~w~n.", [length(Queue)]),
 			ok
 	end.
 
