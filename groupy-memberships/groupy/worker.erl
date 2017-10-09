@@ -27,9 +27,9 @@ start(Id, Module, Rnd, Peer, Sleep) ->
 
 init(Id, Module, Rnd, Peer, Sleep) ->
     {ok, Cast} = apply(Module, start, [Id, Peer]),
-    io:format("~w trying to join", [Id]),
+    % io:format("~w trying to join", [Id]),
     {ok, Color} = join(Id, Cast),
-    io:format("~w did join", [Id]),
+    % io:format("~w did join", [Id]),
     init_cont(Id, Rnd, Cast, Color, Sleep).
 
 % Wait for the first view to be delivered

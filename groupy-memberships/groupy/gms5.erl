@@ -1,8 +1,9 @@
--module(gms3).
+-module(gms5).
 -export([start/1, start/2]).
 
--define(timeout, 1000).
--define(arghh, 199).
+-define(timeout, 5000).
+-define(arghh, 100).
+-define(arghh2, 50).
 
 % Start this node as a master
 start(Id) ->
@@ -32,7 +33,33 @@ leader(Id, Master, N, Slaves, Group) ->
     end.
 
 bcast(Id, Msg, Slaves) ->
-    lists:foreach(fun(Slave) -> Slave ! Msg, crash(Id) end, Slaves).
+    lists:foreach(
+        fun(Slave) ->
+            crashSend(Id, Slave, Msg),
+            crash(Id)
+        end,
+    Slaves),
+    acknoledgeMessage(Id, Msg, Slaves, length(Slaves)).
+
+acknoledgeMessage(_Id, Msg, _Slaves, 0) ->
+    io:format("acced: ~w~n", [Msg]),
+    ok;
+acknoledgeMessage(Id, Msg, Slaves, NrOfAcs) ->
+    io:format("Trying: ~w nr left ~w ~n", [Msg, NrOfAcs]),
+    receive
+        {acc, Msg} ->
+            acknoledgeMessage(Id, Msg, Slaves, NrOfAcs - 1)
+    after 1000 ->
+        bcast(Id, Msg, Slaves)
+    end.
+
+crashSend(Id, To, Msg) ->
+    case random:uniform(?arghh2) of
+        ?arghh2 ->
+            io:format("leader ~w: dropped message~n", [Id]);
+        _ ->
+            To ! Msg
+    end.
 
 crash(Id) ->
     case random:uniform(?arghh) of
@@ -76,18 +103,23 @@ slave(Id, Master, Leader, N, Last, Slaves, Group) ->
             Leader ! {join, Wrk, Peer},
             io:format("[~w] Routing join request", [Id]),
             slave(Id, Master, Leader, N, Last, Slaves, Group);
-        {msg, I, _Msg} when (I =< N) ->
+        {msg, I, _Msg} = NewLast when (I =< N) ->
             dropped,
-            % io:format("Dropped~n"),
+            io:format("Dropped msg~n"),
+            Leader ! {acc, NewLast},
             slave(Id, Master, Leader, N, Last, Slaves, Group);
         {msg, I, Msg} = NewLast ->
             io:format("[~w]: ~w~n", [Id, NewLast]),
+            Leader ! {acc, NewLast},
             Master ! Msg,
             slave(Id, Master, Leader, I, NewLast, Slaves, Group);
-        {view, I, _, _} when (I =< N)->
+        {view, I, _, _} = NewLast when (I =< N)->
             io:format("Dropped View~n"),
+            Leader ! {acc, NewLast},
             slave(Id, Master, Leader, N, Last, Slaves, Group);
         {view, I, [Leader|Slaves2], Group2} = NewLast ->
+            Leader ! {acc, NewLast},
+            io:format("Acc: ~w~n", [NewLast]),
             Master ! {view, Group2},
             slave(Id, Master, Leader, I, NewLast, Slaves2, Group2);
         {'DOWN', _Ref, process, Leader, _Reason} ->

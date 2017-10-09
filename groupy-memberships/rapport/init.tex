@@ -1,0 +1,139 @@
+
+\documentclass[11pt,a4paper, abstractoff,titlepage,final,parskip=half*]{scrreprt}%Print
+%,twoside,openright
+%\usepackage[svenska]{babel}
+\usepackage[utf8]{inputenc}
+%%\usepackage[latin1]{inputenc}
+\usepackage[T1]{fontenc} 
+\usepackage[pdftex]{graphicx} 
+\usepackage{color}
+\usepackage[table]{xcolor}
+%\usepackage[round]{natbib}
+\usepackage[square,sort,comma,numbers]{natbib}
+\usepackage{tabularx}
+\usepackage{subfigure}
+\usepackage{listings}
+\usepackage{rotating} 
+\usepackage{lmodern} 
+\usepackage[intoc]{nomencl} 
+\usepackage{amsmath}
+\usepackage{microtype}
+\usepackage{multirow}
+\usepackage{xcolor}
+\usepackage{enumitem}
+
+\usepackage[automark, komastyle, headsepline]{scrpage2}
+
+
+\usepackage[pdfpagelabels]{hyperref}
+
+\hypersetup{
+	colorlinks,
+	linkcolor={blue!30!black},
+	citecolor={red!80!black},
+	urlcolor={blue!30!black}
+	pdfstartpage=1,
+	pdfauthor={Hannes Rabo},%
+	pdfkeywords={KTH, IT},
+	pdfcreator={Hannes Rabo},
+	pdfproducer={LaTeX with hyperref},
+	pdfdisplaydoctitle=true,
+	pdflang=en,
+	plainpages=false,
+}
+
+
+%*****************************************
+%Layout designing for Figures and Tables 
+%*****************************************
+
+\renewcommand\theequation{\thechapter.\arabic{equation}}
+\makeatletter \@addtoreset{equation}{chapter} \makeatother    
+
+\renewcommand\thefigure{\thechapter.\arabic{figure}}
+\makeatletter \@addtoreset{figure}{chapter} \makeatother    
+
+\renewcommand\thetable{\thechapter.\arabic{table}}
+\makeatletter \@addtoreset{table}{chapter} \makeatother    
+
+\setkomafont{caption}{\footnotesize\itshape}
+\setkomafont{captionlabel}{\footnotesize\itshape}
+
+\renewcommand{\figurename}{Fig.}
+%\renewcommand{\equationname}{Eq.}
+
+\newcolumntype{C}[1]{>{\centering\arraybackslash}p{#1}}
+
+% Change this to get different names on sections 
+
+\renewcommand{\contentsname}{Content }
+\renewcommand{\bibname}{Bibliography }
+\renewcommand{\chaptername}{Chapter }
+
+%*****************************************
+%Layout designing for Figures and Tables 
+%*****************************************
+%
+
+
+\pdfminorversion=6
+\colorlet{chapter}{black}
+\addtokomafont{chapter}{\color{chapter}}
+
+\makeatletter
+\renewcommand*{\chapterformat}{
+\begingroup
+	\setlength{\unitlength}{1mm}%
+	\begin{picture}(22,30)(0,5)%
+	
+		%----  cmd \line(1,0) is use to draw straight horizontalline----
+		\put(20,15){\line(1,0){\dimexpr
+		\textwidth-20\unitlength\relax\@gobble}}%
+		\put(-4,0){\makebox(20,20)[r]{
+		\fontsize{28\unitlength}{28\unitlength}\selectfont\thechapter
+		\kern-.04em
+		}}
+		
+		%----- for additional chapter lable--------- which not required here -------------
+		\put(20,15){\makebox(\dimexpr
+		\textwidth-20\unitlength\relax\@gobble,\ht\strutbox\@gobble)[l]{
+			%chapapp is what a chapter is called ex. "Chapter"
+		\ \normalsize\color{black}\ \chaptername \thechapter\autodot
+		}}
+	\end{picture} 
+\endgroup
+}
+
+
+
+%*****************************
+% Abbreviations layout design
+%*****************************
+
+%
+\renewcommand{\nomname}{Abbreviations}% Dots between abbreviations and text
+\setlength{\nomlabelwidth}{.20\hsize}
+\renewcommand{\nomlabel}[1]{#1 \dotfill}
+\setlength{\nomitemsep}{-\parsep}
+\makenomenclature
+
+%****************
+
+
+
+\setcounter{secnumdepth}{4}
+\setcounter{tocdepth}{4}
+
+\pagestyle{scrheadings} 
+
+
+%*****************************************
+% Layout designing for Header and Footer 
+%*****************************************
+
+
+%\clearscrheadfoot
+%\clearscrplain
+
+\cfoot{\pagemark}
+%\ihead{\headmark}

@@ -10,23 +10,28 @@ start(Id) ->
     Rnd = random:uniform(1000),
     {ok, spawn_link(fun()-> init(Id, Rnd, Self) end)}.
 
-init(Id,Rnd, Master) ->
+init(Id, Rnd, Master) ->
     random:seed(Rnd, Rnd, Rnd),
-    leader(Id, Master, 0, [], [Master]).
+    leader(Id, Master, 0, 0, [], [Master]).
 
 % Code for acting out the leadership role
-leader(Id, Master, N, Slaves, Group) ->
+leader(Id, Master, N_msg, N_view, Slaves, Group) ->
     receive
         {mcast, Msg} ->
-            bcast(Id, {msg, N, Msg}, Slaves),
+            bcast(Id, {msg, N_msg, Msg}, Slaves),
             Master ! Msg,
-            leader(Id, Master, N + 1, Slaves, Group);
+            leader(Id, Master, N_msg + 1, N_view, Slaves, Group);
+        {state_update, Peer} ->
+            % This is a invisible update. No increase of number
+            Peer ! {view_update, N_msg, N_view, Group},
+            io:format("Send view update!~n"),
+            leader(Id, Master, N_msg, N_view, Slaves, Group);
         {join, Wrk, Peer} ->
             Slaves2 = lists:append(Slaves, [Peer]),
             Group2 = lists:append(Group, [Wrk]),
-            bcast(Id, {view, N, [self()|Slaves2], Group2}, Slaves2),
+            bcast(Id, {view, N_msg, N_view, [self()|Slaves2], Group2}, Slaves2),
             Master ! {view, Group2},
-            leader(Id, Master, N + 1, Slaves2, Group2);
+            leader(Id, Master, N_msg, N_view + 1, Slaves2, Group2);
         stop ->
             ok
     end.
@@ -55,58 +60,73 @@ init(Id, Rnd, Grp, Master) ->
     Grp ! {join, Master, Self},
     random:seed(Rnd, Rnd, Rnd),
     receive
-        {view, N, [Leader|Slaves], Group} ->
+        {view, N_msg, N_view, [Leader|Slaves], Group} ->
             Master ! {view, Group},
             erlang:monitor(process, Leader),
             io:format("~w has joined~n", [Id]),
-            slave(Id, Master, Leader, N, {msg, N-1, "node not initialized"}, Slaves, Group)
+            slave(Id, Master, Leader, -1, -1, {msg, -1, "node not initialized"}, Slaves, Group)
     after ?timeout ->
         io:format("[~w] Did not receive any view~n", [Id]),
         Master ! {error, "no reply from leader"}
     end.
 
 % Slave state code
-slave(Id, Master, Leader, N, Last, Slaves, Group) ->
+slave(Id, Master, Leader, N_msg, N_view, Last, Slaves, Group) ->
     % io:format("Slave: ~w~n", [Id]),
     receive
         {mcast, Msg} ->
             Leader ! {mcast, Msg},
-            slave(Id, Master, Leader, N, Last, Slaves, Group);
+            slave(Id, Master, Leader, N_msg, N_view, Last, Slaves, Group);
         {join, Wrk, Peer} ->
             Leader ! {join, Wrk, Peer},
-            io:format("[~w] Routing join request", [Id]),
-            slave(Id, Master, Leader, N, Last, Slaves, Group);
-        {msg, I, _Msg} when (I =< N) ->
+            io:format("[~w] Routing join request~n", [Id]),
+            slave(Id, Master, Leader, N_msg, N_view, Last, Slaves, Group);
+
+        {msg, I, Msg} when (I =< N_msg) ->
             dropped,
-            % io:format("Dropped~n"),
-            slave(Id, Master, Leader, N, Last, Slaves, Group);
-        {msg, I, Msg} = NewLast ->
+            io:format("Dropped msg: ~w~n", [Msg]),
+            slave(Id, Master, Leader, N_msg, N_view, Last, Slaves, Group);
+        {msg, I, Msg} = NewLast when (I == (N_msg + 1)) ->
             io:format("[~w]: ~w~n", [Id, NewLast]),
             Master ! Msg,
-            slave(Id, Master, Leader, I, NewLast, Slaves, Group);
-        {view, I, _, _} when (I =< N)->
+            slave(Id, Master, Leader, I, N_view, NewLast, Slaves, Group);
+        % Slave has outdated state. Needs to receive it again.
+        {msg, _I, _Msg} ->
+            % perhaps we need to clear the channel?
+            io:format("Outdated state~n"),
+            Leader ! {state_update, self()},
+            slave(Id, Master, Leader, N_msg, N_view, Last, Slaves, Group);
+        {view_update, N_msg_new, N_view_new, NewGroup} ->
+            Master ! {view, NewGroup},
+            io:format("Updated view~n"),
+            slave(Id, Master, Leader, N_msg_new, N_view_new, Last, Slaves, NewGroup);
+        {view, I, _, _} when (I =< N_view)->
             io:format("Dropped View~n"),
-            slave(Id, Master, Leader, N, Last, Slaves, Group);
+            slave(Id, Master, Leader, N_msg, N_view, Last, Slaves, Group);
         {view, I, [Leader|Slaves2], Group2} = NewLast ->
             Master ! {view, Group2},
-            slave(Id, Master, Leader, I, NewLast, Slaves2, Group2);
+            slave(Id, Master, Leader, N_msg, I, NewLast, Slaves2, Group2);
+
         {'DOWN', _Ref, process, Leader, _Reason} ->
-            election(Id, Master, N, Last, Slaves, Group);
+            election(Id, Master, N_msg, N_view, Last, Slaves, Group);
         stop ->
-            ok
+            ok;
+        Msg ->
+            io:format("Malformed message: ~w~n", [Msg]),
+            slave(Id, Master, Leader, N_msg, N_view, Last, Slaves, Group)
     end.
 
-election(Id, Master, N, Last, Slaves, [_|Group]) ->
+election(Id, Master, N_msg, N_view, Last, Slaves, [_|Group]) ->
     Self = self(),
     case Slaves of
         [Self|Rest] ->
             io:format("~w became the new master: ~w~n", [Id, Rest]),
             bcast(Id, Last, Rest),
-            bcast(Id, {view, N + 1, Slaves, Group}, Rest),
+            bcast(Id, {view, N_msg, N_view + 1, Slaves, Group}, Rest),
             Master ! {view, Group},
-            leader(Id, Master, N + 2, Rest, Group);
+            leader(Id, Master, N_msg, N_view + 2, Rest, Group);
         [Leader|Rest] ->
             erlang:monitor(process, Leader),
             io:format("~w became a new slave~n", [Id]),
-            slave(Id, Master, Leader, N, Last, Rest, Group)
+            slave(Id, Master, Leader, N_msg, N_view, Last, Rest, Group)
     end.
