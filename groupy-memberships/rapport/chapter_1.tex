@@ -19,3 +19,10 @@ In case a leader dies while it is broadcasting messages to the nodes in the netw
 
 \section{Problems and further development}
 One problem with the current implementation is that it will not account for lost messages. Erlang will guarantee FIFO order of messages between two processes but does not guarantee that messages are delivered. This means that we can loose a message to one of the slave nodes and that process will thereafter be out of sync compared to the rest of the network. To solve this we have two primary options. We can either store all messages in a list until we are certain that all nodes has received them (and using acknowledgements when nodes receive messages). Or we can have the leader node wait for all nodes to acknowledge each message it sends before moving on to handling more messages. In the second implementation we are not required to store as much data and problems where the leader node crashes are simpler to solve. The network will also become more synchronized with this implementation as only one message will ever be sent before all nodes has to synchronize again. On the other side this way of solving the problem has a lot of performance issues. The entire system will lock down if a single node fails to respond and we have to wait for it to time out or answer. This means that we can no longer toggle state faster than the maximum round trip time in the system which we could do previously.
+
+\begin{figure}[h]
+\centering
+\includegraphics[width=0.7\linewidth]{res/sim_200}
+\caption{test}
+\label{fig:sim_200}
+\end{figure}

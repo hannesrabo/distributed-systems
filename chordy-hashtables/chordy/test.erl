@@ -6,15 +6,19 @@
 
 
 %% Starting up a set of nodes is made easier using this function.
+t1() ->
+    T = start(node1),
+    start(node1, T).
+
 
 start(Module) ->
-    Id = key:generate(), 
+    Id = key:generate(),
     apply(Module, start, [Id]).
 
 
 start(Module, P) ->
-    Id = key:generate(), 
-    apply(Module, start, [Id,P]).    
+    Id = key:generate(),
+    apply(Module, start, [Id,P]).
 
 start(_, 0, _) ->
     ok;
@@ -27,7 +31,7 @@ start(Module, N, P) ->
 add(Key, Value , P) ->
     Q = make_ref(),
     P ! {add, Key, Value, Q, self()},
-    receive 
+    receive
 	{Q, ok} ->
 	   ok
 	after ?Timeout ->
@@ -37,7 +41,7 @@ add(Key, Value , P) ->
 lookup(Key, Node) ->
     Q = make_ref(),
     Node ! {lookup, Key, Q, self()},
-    receive 
+    receive
 	{Q, Value} ->
 	    Value
     after ?Timeout ->
@@ -67,21 +71,10 @@ check([], _, Failed, Timeout) ->
     {Failed, Timeout};
 check([Key|Keys], P, Failed, Timeout) ->
     case lookup(Key,P) of
-	{Key, _} -> 
+	{Key, _} ->
 	    check(Keys, P, Failed, Timeout);
-	{error, _} -> 
+	{error, _} ->
 	    check(Keys, P, Failed, Timeout+1);
 	false ->
 	    check(Keys, P, Failed+1, Timeout)
     end.
-
-
-    
-
-
-
-
-
-
-
-
