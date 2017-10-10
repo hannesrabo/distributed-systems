@@ -4,6 +4,8 @@
 -define(StabilizeTimeout, 1000).
 -define(ConnectionTimeout, 5000).
 
+% Initialization
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 start(Id) ->
     start(Id, nil).
 
@@ -16,7 +18,7 @@ init(Id, Peer) ->
     {ok, Successor} = connect(Id, Peer),
     io:format("Successfully connected~n"),
     schedule_stabilize(),
-    node(Id, Predecessor, Successor).
+    node(Id, Predecessor, Successor, storage:create()).
 
 connect(Id, nil) ->
     {ok, {Id, self()}};
@@ -31,84 +33,128 @@ connect(Id, Peer) ->
     end.
 
 
-node(Id, Predecessor, Successor) ->
+% Main message handler
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+node(Id, Predecessor, Successor, Store) ->
     % io:format("[~w] P: ~w, S: ~w~n", [Id, Predecessor, Successor]),
     receive
         {key, Qref, Peer} ->
             % io:format("1~n"),
             Peer ! {Qref, Id},
-            node(Id, Predecessor, Successor);
+            node(Id, Predecessor, Successor, Store);
         {notify, New} ->
             % io:format("2~n"),
-            Pred = notify(New, Id, Predecessor),
-            node(Id, Pred, Successor);
+            {Pred, NStore} = notify(New, Id, Predecessor, Store),
+            node(Id, Pred, Successor, NStore);
         {request, Peer} ->
             % io:format("3~n"),
             request(Peer, Predecessor),
-            node(Id, Predecessor, Successor);
+            node(Id, Predecessor, Successor, Store);
         {status, Pred} ->
             % io:format("4~n"),
             Succ = stabilize(Pred, Id, Successor),
-            node(Id, Predecessor, Succ);
+            node(Id, Predecessor, Succ, Store);
         stabilize ->
             % stabilize now!!
             % io:format("S: ~w~n", [Successor]),
             % io:format("5~n"),
             stabilize(Successor),
-            node(Id, Predecessor, Successor);
+            node(Id, Predecessor, Successor, Store);
+
+        {add, Key, Value, Qref, Client} ->
+            Added = add(Key, Value, Qref, Client,
+            Id, Predecessor, Successor, Store),
+            node(Id, Predecessor, Successor, Added);
+        {lookup, Key, Qref, Client} ->
+            lookup(Key, Qref, Client, Id, Predecessor, Successor, Store),
+            node(Id, Predecessor, Successor, Store);
+        {handover, Elements} ->
+            Merged = storage:merge(Store, Elements),
+            node(Id, Predecessor, Successor, Merged);
+
         probe ->
             % io:format("~w: ~w~n", [Id, Successor]),
             % io:format("6~n"),
+            io:format("[~w]: Store: ~w~n", [Id, Store]),
             create_probe(Id, Successor),
-            node(Id, Predecessor, Successor);
+            node(Id, Predecessor, Successor, Store);
         {probe, Id, Nodes, T} ->
             remove_probe(T, Nodes),
-            node(Id, Predecessor, Successor);
+            node(Id, Predecessor, Successor, Store);
         {probe, Ref, Nodes, T} ->
+            io:format("[~w]: Store: ~w~n", [Id, Store]),
             forward_probe(Ref, T, Nodes, Id, Successor),
-            node(Id, Predecessor, Successor);
+            node(Id, Predecessor, Successor, Store);
         node_status ->
-            io:format("[~w] Pre: ~w Suc: ~w~n", [Id, Predecessor, Successor]);
+            io:format("[~w] Pre: ~w Suc: ~w~n", [Id, Predecessor, Successor]),
+            node(Id, Predecessor, Successor, Store);
+
         Else ->
-            io:format("[~w] Node received invalid message: ~w~n", [Id, Else])
+            io:format("[~w] Node received invalid message: ~w~n", [Id, Else]),
+            node(Id, Predecessor, Successor, Store)
     end.
 
+
+% Key value Store
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+add(Key, Value, Qref, Client, Id, {Pkey, _}, {_, Spid}, Store) ->
+    case key:between(Key, Pkey, Id) of
+        true ->
+            % We are responsible for this key!
+            Client ! {Qref, ok},
+            storage:add(Key, Value, Store);
+        false ->
+            % Pass it on!
+            Spid ! {add, Key, Value, Qref, Client},
+            Store
+    end.
+
+lookup(Key, Qref, Client, Id, {Pkey, _}, Successor, Store) ->
+    case key:between(Key, Pkey, Id) of
+        true ->
+            % This is our key!
+            Result = storage:lookup(Key, Store),
+            Client ! {Qref, Result};
+        false ->
+            % Pass it on!
+            {_, Spid} = Successor,
+            Spid ! {lookup, Key, Qref, Client}
+    end.
+
+handover(Id, Store, Nkey, Npid) ->
+    {Keep, Rest} = storage:split(Id, Nkey, Store),
+    Npid ! {handover, Rest},
+    io:format("Handover: ~w~n", [Rest]),
+    Keep.
+
+
+% Stabilize
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
 schedule_stabilize() ->
     timer:send_interval(?StabilizeTimeout, self(), stabilize).
 
-% stabilize(nil) ->
-%     fail;
 stabilize({_, Spid}) ->
+    % io:format("~w~n", [Spid]),
     Spid ! {request, self()}.
 
-% Sends a new probe to successor
-create_probe(Id, {_Sid, Spid}) ->
-    Spid ! {probe, Id, [Id], erlang:system_time(micro_seconds)}.
-
-% Probe circulated the complete circle. Print status!
-remove_probe(T, Nodes) ->
-    io:format("[Probe]: ~wµs ~n nodes: ~w~n", [erlang:system_time(micro_seconds)-T, lists:reverse(Nodes)]).
-
-% Forward this probe
-forward_probe(Ref, T, Nodes, Id, {_Sid, Spid}) ->
-    io:format("[~w] Forwarding probe~n", [Id]),
-    Spid ! {probe, Ref, [Id | Nodes], T}.
-
 % Returns new precededing node
-notify({Nkey, Npid}, Id, Predecessor) ->
+notify({Nkey, Npid}, Id, Predecessor, Store) ->
     case Predecessor of
         nil ->
-            {Nkey, Npid};
+            % Always accept if we dont have a predecessor
+            Keep = handover(Id, Store, Nkey, Npid),
+            {{Nkey, Npid}, Keep};
         {Pkey, _} ->
             case key:between(Nkey, Pkey, Id) of
                 true ->
                     % New key is between!
-                    {Nkey, Npid};
+                    Keep = handover(Id, Store, Nkey, Npid),
+                    {{Nkey, Npid}, Keep};
                 false ->
                     % request is ingored. we will tell the node
                     io:format("Ignored request to change predecessor~n"),
                     Npid ! {status, Predecessor},
-                    Predecessor
+                    {Predecessor, Store}
             end
     end.
 
@@ -149,3 +195,19 @@ stabilize(Pred, Id, Successor) ->
                     Successor
             end
     end.
+
+% Probing
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+% Sends a new probe to successor
+create_probe(Id, {_Sid, Spid}) ->
+    Spid ! {probe, Id, [Id], erlang:system_time(micro_seconds)}.
+
+% Probe circulated the complete circle. Print status!
+remove_probe(T, Nodes) ->
+    io:format("[Probe]: ~wµs ~n nodes: ~w~n", [erlang:system_time(micro_seconds)-T, lists:reverse(Nodes)]).
+
+% Forward this probe
+forward_probe(Ref, T, Nodes, Id, {_Sid, Spid}) ->
+    io:format("[~w] Forwarding probe~n", [Id]),
+    Spid ! {probe, Ref, [Id | Nodes], T}.

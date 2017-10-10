@@ -10,6 +10,6 @@ generate() ->
 between(_, From, From) ->
     true;
 between(Key, From, To) ->
-       ((Key > From) and (Key < To))
+       ((Key > From) and (Key =< To))
     or ((Key > From) and (To < From))
-    or ((Key < To) and (From > To)).
+    or ((Key =< To) and (From > To)).
