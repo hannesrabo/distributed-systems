@@ -12,6 +12,7 @@ ebin/*.beam
 rel/example_project
 .concrete/DEV_MODE
 .rebar
+<<<<<<< HEAD
 .gitignore.swp
 
 # End of https://www.gitig
@@ -255,3 +256,5 @@ TSWLatexianTemp*
 
 # expex forward references with \gathertags
 *-tags.tex
+=======
+>>>>>>> 1bbf2478e0bd7b5c7a6afc4bc04b3845fcb73319
