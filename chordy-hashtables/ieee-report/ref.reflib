@@ -1,0 +1,44 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<library>
+	<manage_target braces="false" utf8="false">ref.bib</manage_target>
+	<library_folder monitor="false"></library_folder>
+	<taglist/>
+	<doclist>
+		<doc>
+			<relative_filename>../chord_sigcomm.pdf</relative_filename>
+			<key>chordsigcomm</key>
+			<notes></notes>
+			<bib_type>Article</bib_type>
+			<bib_doi></bib_doi>
+			<bib_title>chord_sigcomm</bib_title>
+			<bib_authors></bib_authors>
+			<bib_journal></bib_journal>
+			<bib_volume></bib_volume>
+			<bib_number></bib_number>
+			<bib_pages></bib_pages>
+			<bib_year>2001</bib_year>
+		</doc>
+		<doc>
+			<filename></filename>
+			<key>chord-sigcomm</key>
+			<notes></notes>
+			<bib_type>article</bib_type>
+			<bib_doi>10.1145/964723.383071</bib_doi>
+			<bib_title>Chord: A Scalable Peer-to-peer Lookup Service for Internet Applications</bib_title>
+			<bib_authors>Stoica, Ion and Morris, Robert and Karger, David and Kaashoek, M.  Frans and Balakrishnan, Hari</bib_authors>
+			<bib_journal>SIGCOMM Comput. Commun. Rev.</bib_journal>
+			<bib_volume>31</bib_volume>
+			<bib_number>4</bib_number>
+			<bib_pages>149-160</bib_pages>
+			<bib_year>2001</bib_year>
+			<bib_extra key="Acmid">383071</bib_extra>
+			<bib_extra key="Address">New York, NY, USA</bib_extra>
+			<bib_extra key="Issn">0146-4833</bib_extra>
+			<bib_extra key="Issue_date">October 2001</bib_extra>
+			<bib_extra key="Month">aug</bib_extra>
+			<bib_extra key="Numpages">12</bib_extra>
+			<bib_extra key="Publisher">ACM</bib_extra>
+			<bib_extra key="Url">http://doi.acm.org/10.1145/964723.383071</bib_extra>
+		</doc>
+	</doclist>
+</library>
